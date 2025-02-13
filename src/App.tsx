@@ -3,22 +3,19 @@ import { useEffect, useState } from "react";
 import {
   AnimationControls,
   motion,
+  PanInfo,
   TargetAndTransition,
   VariantLabels,
 } from "framer-motion";
-
-type Note = {
-  title: string;
-  desc: string;
-  priv: boolean;
-  deleted: boolean;
-};
+import Tab from "./components/Tab";
+import { Note, NoteFull, NotesFull } from "./types";
 
 function App() {
   const [note, setNote] = useState<Note | null>();
-  const [notes, setNotes] = useState<
-    (Note & { id: string; createdAt: string; updatedAt: string })[] | null
-  >(null);
+
+  const [editNote, setEditNote] = useState<NoteFull | null>();
+
+  const [notes, setNotes] = useState<NotesFull | null>(null);
 
   const [animate, setAnimate] = useState<
     | boolean
@@ -42,7 +39,7 @@ function App() {
           )
         );
       });
-  }, [note]);
+  }, [note, editNote]);
 
   function guardar() {
     setAnimate({
@@ -61,15 +58,43 @@ function App() {
       .then((response) => response.json())
       .then((data) => {
         console.log("Success:", data);
-        setNote(null); // Cuando se guarda, la nota se establece en null
+        setNote(null); // Cuando se guarda, la nota se establece en null 
+   
         setAnimate({ x: 0, y: 0 }); // Restablecer la posición
+        
       })
       .catch((error) => {
         console.error("Error:", error);
       });
   }
 
-  const handleDragEnd = (event: any, info: any) => {
+  function edit(note: Note) {
+    setAnimate({
+      scale: 0.1, // Contracción cuando la nota ha sido guardada
+      opacity: 0, // Desaparición cuando la nota ha sido guardada
+    });
+    console.log("Editando...", note);
+
+    fetch("http://localhost:5000/note", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(note), // Enviar el ID de la nota a eliminar
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Nota eliminada:", data);
+        setEditNote(null); // Limpiar la nota eliminada
+
+        setAnimate({ x: 0, y: 0 }); // Restablecer la posición
+      })
+      .catch((error) => {
+        console.error("Error al eliminar:", error);
+      });
+  }
+
+  const handleDragEnd = (info: PanInfo) => {
     const saveIcon = document
       .querySelector("#save-icon")
       ?.getBoundingClientRect();
@@ -84,7 +109,9 @@ function App() {
       info.point.y > saveIcon.top &&
       info.point.y < saveIcon.bottom
     ) {
-      guardar();
+      if (editNote) {
+        edit(editNote);
+      } else guardar();
     } else if (
       deleteIcon &&
       info.point.x > deleteIcon.left &&
@@ -99,37 +126,63 @@ function App() {
 
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value;
-    setNote({
-      title: value as string,
-      desc: note ? note.desc : "",
-      priv: false,
-      deleted: false,
-    });
+    if (editNote) {
+      setEditNote({
+        ...editNote,
+        title: value as string,
+        desc: editNote ? editNote.desc : "",
+        priv: false,
+        deleted: false,
+      });
+    } else {
+      setNote({
+        title: value as string,
+        desc: note ? note.desc : "",
+        priv: false,
+        deleted: false,
+      });
+    }
   };
 
   const handleChangeAltern = (
     event: React.ChangeEvent<HTMLTextAreaElement>
   ) => {
     const value = event.target.value;
-    setNote({
-      desc: value as string,
-      title: note ? note.title : "",
-      priv: false,
-      deleted: false,
-    });
+    if (editNote) {
+      setEditNote({
+        ...editNote,
+        title: editNote ? editNote.title : "",
+        desc: value as string,
+        priv: false,
+        deleted: false,
+      });
+    } else {
+      setNote({
+        title: note ? note.title : "",
+        desc: value as string,
+        priv: false,
+        deleted: false,
+      });
+    }
   };
 
   return (
     <div className="relative h-screen overflow-hidden">
-      <div className="grid grid-cols-2 h-full">
+      <div className="sm:grid grid-cols-2 h-full">
         <section className="w-full">
-          <h1>To Do List</h1>
-          {notes?.map((note) => (
-            <div key={note.id}>
-              <h2 className="text-2xl ">{note.title}</h2>
-              <p>{note.desc}</p>
-            </div>
-          ))}
+          <h1 className="w-full  text-2xl text-center my-2">To Do List</h1>
+          {notes ? (
+            <Tab
+              notes={notes}
+              setEditNote={setEditNote}
+              itemsStart={0}
+              itemsEnd={3}
+            />
+          ) : (
+            <>
+              <div>No hay notas</div>
+            </>
+          )}
         </section>
 
         <section className="gap-2 flex flex-col h-full justify-between items-center">
@@ -148,9 +201,9 @@ function App() {
             drag
             dragMomentum={false}
             whileDrag={{ scale: 1.1 }}
-            onDragEnd={(event, info) => {
-              setAnimate(info.offset as any); // Actualizar posición del estado al arrastrar
-              handleDragEnd(event, info);
+            onDragEnd={(_, info) => {
+              setAnimate(info.offset as TargetAndTransition); // Actualizar posición del estado al arrastrar
+              handleDragEnd(info);
             }}
             animate={animate}
             transition={{ duration: 0.5 }} // Duración de la animación
@@ -162,14 +215,14 @@ function App() {
                 name="title"
                 className="w-60 underline bg-green-200 h-10 text-start p-2 border-none"
                 onChange={handleChange}
-                value={note?.title || ""}
+                value={editNote ? editNote?.title : note?.title || ""}
               />
               <textarea
                 placeholder="Description"
                 name="desc"
                 className="h-full w-60 bg-green-200 py-auto p-2 border-none"
                 onChange={handleChangeAltern}
-                value={note?.desc || ""}
+                value={editNote ? editNote?.desc : note?.desc || ""}
               />
             </div>
           </motion.div>

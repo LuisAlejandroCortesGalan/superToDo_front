@@ -15,7 +15,7 @@ Este es un proyecto de **To Do List** creado como parte de mi formación en desa
 
 ## Tecnologías utilizadas
 
-- **Frontend**: React, Framer Motion
+- **Frontend**: React, [Framer Motion](https://motion.dev/docs/react-reorder)
 - **Backend**: Node.js, Express
 - **Base de datos**: MongoDB
 - **Estilos**: TailwindCSS
