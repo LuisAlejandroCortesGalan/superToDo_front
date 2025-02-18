@@ -26,7 +26,7 @@ function App() {
   >({ x: 0, y: 0 }); // Estado para posición del div
 
   useEffect(() => {
-    fetch("http://localhost:5000/note", {
+    fetch("https://supertodo-back.onrender.com/note", {
       method: "GET",
     })
       .then((response) => response.json())
@@ -48,7 +48,7 @@ function App() {
     });
     const jasonNote = JSON.stringify(note);
     console.log("Guardando...");
-    fetch("http://localhost:5000/note", {
+    fetch("https://supertodo-back.onrender.com/note", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -75,7 +75,7 @@ function App() {
     });
     console.log("Editando...", note);
 
-    fetch("http://localhost:5000/note", {
+    fetch("https://supertodo-back.onrender.com/note", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -84,13 +84,13 @@ function App() {
     })
       .then((response) => response.json())
       .then((data) => {
-        console.log("Nota eliminada:", data);
+        console.log("Nota editada:", data);
         setEditNote(null); // Limpiar la nota eliminada
 
         setAnimate({ x: 0, y: 0 }); // Restablecer la posición
       })
       .catch((error) => {
-        console.error("Error al eliminar:", error);
+        console.error("Error al editada:", error);
       });
   }
 
