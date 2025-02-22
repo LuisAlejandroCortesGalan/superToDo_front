@@ -103,6 +103,30 @@ function App() {
     }
   }
   
+  const deleteNote = async(id: string)=> {
+    setAnimate({
+      scale: 0.1,
+      opacity: 0,
+    });
+    console.log("Eliminando...", id);
+    
+    const response = await fetch(`${URL}/note`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({id})
+    })
+    const data = await response.json()
+    console.log("delete: ", data.message)
+    if(data.success){
+      await fetchData()
+      setEditNote(null)
+      setAnimate({x:0,y:0})
+    } else {
+      console.log("Error at update data")
+    }
+  }
 
   const handleDragEnd = async (info: PanInfo) => {
     const saveIcon = document
@@ -129,7 +153,7 @@ function App() {
       info.point.y > deleteIcon.top &&
       info.point.y < deleteIcon.bottom
     ) {
-      // Hacer el delete
+      if(editNote)await deleteNote(editNote.id)
       setNote(null);
     }
   };
@@ -175,6 +199,8 @@ function App() {
       });
     }
   };
+
+  
 
   return (
     <div className="relative h-screen overflow-hidden">
