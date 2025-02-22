@@ -1,5 +1,5 @@
 import { Reorder } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {NoteFull,  NotesFull } from "../types";
 
 type TabProps = {
@@ -10,11 +10,13 @@ type TabProps = {
 };
 
 function Tab({ notes, itemsStart, itemsEnd, setEditNote }: TabProps) {
-    console.log(itemsEnd)
     const start = itemsStart ? itemsStart : 0;
-    
-  const [items, setItems] = useState(itemsEnd ? notes.slice(start, itemsEnd): notes);
+    const [items, setItems] = useState<NotesFull>([]);
 
+    useEffect(() => {
+      // Actualiza los items solo cuando notes, itemsStart o itemsEnd cambien
+      setItems(itemsEnd ? notes.slice(start, itemsEnd) : notes);
+    }, [notes, itemsStart, itemsEnd, start]);
   return (
     <div className="w-full">
       <Reorder.Group axis="y" values={items} onReorder={setItems}>

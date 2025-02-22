@@ -10,6 +10,9 @@ import {
 import Tab from "./components/Tab";
 import { Note, NoteFull, NotesFull } from "./types";
 
+const URL = "http://localhost:5000"
+
+
 function App() {
   const [note, setNote] = useState<Note | null>();
 
@@ -24,77 +27,84 @@ function App() {
     | AnimationControls
     | undefined
   >({ x: 0, y: 0 }); // Estado para posición del div
-
-  useEffect(() => {
-    fetch("https://supertodo-back.onrender.com/note", {
+  const fetchData = async () => {
+    const response = await fetch(`${URL}/note`, {
       method: "GET",
     })
-      .then((response) => response.json())
-      .then((data) => {
-        setNotes(
-          data.data.map(
-            (
-              note: Note & { _id: string; createdAt: string; updatedAt: string }
-            ) => ({ ...note, id: note._id })
-          )
-        );
-      });
-  }, [note, editNote]);
+    const data = await response.json()
+        console.log("Datos recibidos:", data); // Verifica qué datos se reciben
+        if (data.data) {
+          setNotes(
+            data.data.map((note: Note & { _id: string; createdAt: string; updatedAt: string }) => ({
+              ...note,
+              id: note._id,
+            }))
+          );
+        } else {
+          console.error("No se encontraron datos en la respuesta.");
+        }
+  };
+  
+  useEffect(() => {
+    fetchData()
+  }, []);
 
-  function guardar() {
+  async function guardar() {
     setAnimate({
-      scale: 0.1, // Contracción cuando la nota ha sido guardada
-      opacity: 0, // Desaparición cuando la nota ha sido guardada
+      scale: 0.1,
+      opacity: 0,
     });
+  
     const jasonNote = JSON.stringify(note);
     console.log("Guardando...");
-    fetch("https://supertodo-back.onrender.com/note", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: jasonNote,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Success:", data);
-        setNote(null); // Cuando se guarda, la nota se establece en null 
-   
-        setAnimate({ x: 0, y: 0 }); // Restablecer la posición
-        
+    try {
+      const res = await fetch(`${URL}/note`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jasonNote,
       })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
+      const data = await res.json()
+      if(data.success){
+        await fetchData()
+        setNote(null)
+        setAnimate({x:0,y:0})
+      }else {
+        console.log("No data in db")
+      }
+    } catch (error) {
+      console.error("Error at save data: ", error)
+    }
   }
-
-  function edit(note: Note) {
+  
+  async function edit(note: Note) {
     setAnimate({
-      scale: 0.1, // Contracción cuando la nota ha sido guardada
-      opacity: 0, // Desaparición cuando la nota ha sido guardada
+      scale: 0.1,
+      opacity: 0,
     });
     console.log("Editando...", note);
-
-    fetch("https://supertodo-back.onrender.com/note", {
+  
+    const response = await fetch(`${URL}/note`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(note), // Enviar el ID de la nota a eliminar
+      body: JSON.stringify(note),
     })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Nota editada:", data);
-        setEditNote(null); // Limpiar la nota eliminada
-
-        setAnimate({ x: 0, y: 0 }); // Restablecer la posición
-      })
-      .catch((error) => {
-        console.error("Error al editada:", error);
-      });
+    const data = await response.json()
+    console.log("data: ", data.success)
+    if(data.success){
+      await fetchData()
+    setEditNote(null)
+    setAnimate({x:0,y:0})
+    } else {
+      console.log("Error at update data")
+    }
   }
+  
 
-  const handleDragEnd = (info: PanInfo) => {
+  const handleDragEnd = async (info: PanInfo) => {
     const saveIcon = document
       .querySelector("#save-icon")
       ?.getBoundingClientRect();
@@ -110,8 +120,8 @@ function App() {
       info.point.y < saveIcon.bottom
     ) {
       if (editNote) {
-        edit(editNote);
-      } else guardar();
+        await edit(editNote);
+      } else await guardar();
     } else if (
       deleteIcon &&
       info.point.x > deleteIcon.left &&
@@ -201,9 +211,9 @@ function App() {
             drag
             dragMomentum={false}
             whileDrag={{ scale: 1.1 }}
-            onDragEnd={(_, info) => {
+            onDragEnd={async(_, info) => {
               setAnimate(info.offset as TargetAndTransition); // Actualizar posición del estado al arrastrar
-              handleDragEnd(info);
+              await handleDragEnd(info);
             }}
             animate={animate}
             transition={{ duration: 0.5 }} // Duración de la animación
