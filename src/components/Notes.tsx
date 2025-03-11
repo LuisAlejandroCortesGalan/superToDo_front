@@ -1,220 +1,17 @@
-import { X, Save, EyeOff } from "lucide-react";
-import { useEffect, useReducer, useRef } from "react";
-import {
-  AnimationControls,
-  motion,
-  PanInfo,
-  TargetAndTransition,
-  VariantLabels,
-} from "framer-motion";
+import { X, Save } from "lucide-react";
+import { useRef } from "react";
+import { motion, PanInfo } from "framer-motion";
 import Tab from "./Tab";
-import { Note, NoteFull, NotesFull } from "../types";
+import useNotes, { NotesActionType } from "./useNotes";
+import { Note, NoteFull } from "../types";
 
 type NotesProps = {
   url: string;
 };
 
-const initialAnimationNote = {
-  scale: 0.1,
-  opacity: 0,
-};
-
-const finalAnimationNote = { x: 0, y: 0 };
-
-enum NotesActionType {
-  SETNOTE = "SETNOTE",
-  SETEDITNOTE = "SETEDITNOTE",
-  SETNOTES = "SETNOTES",
-  SETANIMATE = "SETANIMATE",
-}
-
-type SetAnimatePayload =
-  | boolean
-  | VariantLabels
-  | TargetAndTransition
-  | AnimationControls
-  | undefined;
-
-type NotesAction =
-  | { type: NotesActionType.SETNOTE; payload: Note | null }
-  | { type: NotesActionType.SETEDITNOTE; payload: NoteFull | null }
-  | { type: NotesActionType.SETNOTES; payload: NotesFull | null }
-  | { type: NotesActionType.SETANIMATE; payload: SetAnimatePayload };
-
-type NoteState = {
-  note: Note | null;
-  editNote: NoteFull | null;
-  notes: NotesFull | null;
-  animate: SetAnimatePayload;
-};
-
-const notesReducer = (state: NoteState, action: NotesAction) => {
-  const { type, payload } = action;
-  switch (type) {
-    case NotesActionType.SETNOTE:
-      return {
-        ...state,
-        note: payload,
-      };
-    case NotesActionType.SETEDITNOTE:
-      return {
-        ...state,
-        editNote: payload,
-      };
-    case NotesActionType.SETNOTES:
-      return {
-        ...state,
-        notes: payload,
-      };
-    case NotesActionType.SETANIMATE:
-      return {
-        ...state,
-        animate: payload,
-      };
-
-    default:
-      return state;
-  }
-};
-
 export const Notes = ({ url }: NotesProps) => {
   const containerNoteRef = useRef<HTMLDivElement | null>(null);
-  // const [constraints, setConstraints] = useState({ left: 0, right: 0, top: 0, bottom: 0 });
-
-  // useEffect(() => {
-  //   if (containerNoteRef.current) {
-  //     const container = containerNoteRef.current.getBoundingClientRect();
-  //     setConstraints({
-  //       left: -container.width / 2 + 80,  // Ajuste lateral
-  //       right: container.width / 2 - 80,  // Ajuste lateral
-  //       top: -container.height / 2 + 80,
-  //       bottom: container.height / 2 - 80,
-  //     });
-  //   }
-  // }, []);
-
-  const [state, dispatch] = useReducer(notesReducer, {
-    note: null,
-    editNote: null,
-    notes: null,
-    animate: { x: 0, y: 0 },
-  });
-
-  const fetchData = async () => {
-    const response = await fetch(`${url}/note`, {
-      method: "GET",
-    });
-    const data = await response.json();
-    console.log("Datos recibidos:", data);
-    if (data.data) {
-      dispatch({
-        type: NotesActionType.SETNOTES,
-        payload: data.data.map(
-          (
-            note: Note & { _id: string; createdAt: string; updatedAt: string }
-          ) => ({
-            ...note,
-            id: note._id,
-          })
-        ),
-      });
-    } else {
-      console.error("No se encontraron datos en la respuesta.");
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function guardar() {
-    dispatch({
-      type: NotesActionType.SETANIMATE,
-      payload: initialAnimationNote,
-    });
-
-    const jasonNote = JSON.stringify(state.note);
-    console.log("Guardando...");
-    try {
-      const res = await fetch(`${url}/note`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jasonNote,
-      });
-      const data = await res.json();
-      if (data.success) {
-        await fetchData();
-        dispatch({ type: NotesActionType.SETNOTE, payload: null });
-        dispatch({
-          type: NotesActionType.SETANIMATE,
-          payload: finalAnimationNote,
-        });
-      } else {
-        console.log("No data in db");
-      }
-    } catch (error) {
-      console.error("Error at save data: ", error);
-    }
-  }
-
-  async function edit(note: Note) {
-    dispatch({
-      type: NotesActionType.SETANIMATE,
-      payload: initialAnimationNote,
-    });
-    console.log("Editando...", note);
-
-    const response = await fetch(`${url}/note`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(note),
-    });
-    const data = await response.json();
-    console.log("data: ", data.success);
-    if (data.success) {
-      await fetchData();
-      dispatch({ type: NotesActionType.SETEDITNOTE, payload: null });
-      dispatch({
-        type: NotesActionType.SETANIMATE,
-        payload: finalAnimationNote,
-      });
-    } else {
-      console.log("Error at update data");
-    }
-  }
-
-  const deleteNote = async (id: string) => {
-    dispatch({
-      type: NotesActionType.SETANIMATE,
-      payload: initialAnimationNote,
-    });
-    console.log("Eliminando...", id);
-
-    const response = await fetch(`${url}/note`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id }),
-    });
-    const data = await response.json();
-    console.log("delete: ", data.message);
-    if (data.success) {
-      await fetchData();
-      // setEditNote(null)
-      dispatch({ type: NotesActionType.SETEDITNOTE, payload: null });
-      dispatch({
-        type: NotesActionType.SETANIMATE,
-        payload: finalAnimationNote,
-      });
-    } else {
-      console.log("Error at update data");
-    }
-  };
+  const { state, dispatch, guardar, edit, deleteNote } = useNotes(url);
 
   const handleDragEnd = async (info: PanInfo) => {
     const saveIcon = document
@@ -231,8 +28,8 @@ export const Notes = ({ url }: NotesProps) => {
       info.point.y > saveIcon.top &&
       info.point.y < saveIcon.bottom
     ) {
-      if (state.editNote) {
-        await edit(state.editNote);
+      if (state.note && state.editingNote) {
+        await edit(state.note);
       } else await guardar();
     } else if (
       deleteIcon &&
@@ -241,62 +38,36 @@ export const Notes = ({ url }: NotesProps) => {
       info.point.y > deleteIcon.top &&
       info.point.y < deleteIcon.bottom
     ) {
-      if (state.editNote) await deleteNote(state.editNote.id);
+      if (state.note && "id" in state.note) await deleteNote(state.note.id);
       dispatch({ type: NotesActionType.SETNOTE, payload: null });
     }
   };
 
-  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = event.target.value;
-    if (state.editNote) {
-      dispatch({
-        type: NotesActionType.SETEDITNOTE,
-        payload: {
-          ...state.editNote,
-          title: value as string,
-          desc: state.editNote ? state.editNote.desc : "",
-          priv: false,
-          deleted: false,
-        },
-      });
-    } else {
-      dispatch({
-        type: NotesActionType.SETNOTE,
-        payload: {
-          title: value as string,
-          desc: state.note ? state.note.desc : "",
-          priv: false,
-          deleted: false,
-        },
-      });
-    }
-  };
-
-  const handleChangeAltern = (
-    event: React.ChangeEvent<HTMLTextAreaElement>
+  const handleChange = (
+    event: React.ChangeEvent<HTMLTextAreaElement>,
+    type: "desc" | "title"
   ) => {
     const value = event.target.value;
-    if (state.editNote) {
-      dispatch({
-        type: NotesActionType.SETEDITNOTE,
-        payload: {
-          ...state.editNote,
-          title: state.editNote ? state.editNote.title : "",
-          desc: value as string,
-          priv: false,
-          deleted: false,
-        },
-      });
-    } else {
+    if (type === "desc") {
       dispatch({
         type: NotesActionType.SETNOTE,
         payload: {
+          ...state.note,
           title: state.note ? state.note.title : "",
-          desc: value as string,
-          priv: false,
-          deleted: false,
-        },
+          desc: value as string
+        } as Note | NoteFull | null
       });
+    } else if (type === "title") {
+      dispatch({
+        type: NotesActionType.SETNOTE,
+        payload: {
+          ...state.note,
+          title: value as string,
+          desc: state.note ? state.note.desc : ""
+        } as Note | NoteFull | null
+      });
+    } else {
+      alert("Error al Guardar la nota");
     }
   };
 
@@ -308,9 +79,13 @@ export const Notes = ({ url }: NotesProps) => {
           {state.notes ? (
             <Tab
               notes={state.notes}
-              setEditNote={(note) =>
-                dispatch({ type: NotesActionType.SETEDITNOTE, payload: note })
-              }
+              setEditNote={(note) => {
+                dispatch({
+                  type: NotesActionType.SETEDITINGNOTE,
+                  payload: null,
+                });
+                dispatch({ type: NotesActionType.SETNOTE, payload: note });
+              }}
               itemsStart={0}
               itemsEnd={3}
             />
@@ -333,7 +108,7 @@ export const Notes = ({ url }: NotesProps) => {
               <div id="save-icon">
                 <Save className="w-12 h-12" />
               </div>
-              <EyeOff className="w-12 h-12" />
+              {/* <EyeOff className="w-12 h-12" /> */}
             </div>
 
             <motion.div
@@ -359,10 +134,12 @@ export const Notes = ({ url }: NotesProps) => {
                   placeholder="Title"
                   name="title"
                   className="w-60 underline bg-green-200 h-10 text-start p-2 border-none"
-                  onChange={handleChange}
+                  onChange={(ev) => {
+                    handleChange(ev, "title");
+                  }}
                   value={
-                    state.editNote
-                      ? state.editNote?.title
+                    state.editingNote
+                      ? state.note?.title
                       : state.note?.title || ""
                   }
                 />
@@ -370,10 +147,12 @@ export const Notes = ({ url }: NotesProps) => {
                   placeholder="Description"
                   name="desc"
                   className="h-full w-60 bg-green-200 py-auto p-2 border-none"
-                  onChange={handleChangeAltern}
+                  onChange={(ev) => {
+                    handleChange(ev, "desc");
+                  }}
                   value={
-                    state.editNote
-                      ? state.editNote?.desc
+                    state.editingNote
+                      ? state.note?.desc
                       : state.note?.desc || ""
                   }
                 />
